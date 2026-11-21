@@ -46,7 +46,7 @@ def register_fonts():
 
 class Sheet:
     def __init__(self, path):
-        self.c = canvas.Canvas(str(path), pagesize=A4)
+        self.c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
         self.c.setTitle(f"Домашна работа {Path(path).stem}")
         self.y = 0
         self.title = None
