@@ -157,10 +157,71 @@ def task_word_problems(s, t):
         s.y -= 5 * mm
 
 
+def task_column(s, t):
+    """Written (column) arithmetic: numbers digit by digit in a grid, one operator.
+
+    Each problem is "a + b + c" or "a - b" with spaces only between numbers and
+    the operator. Rows: small cells for carries/borrows, one row per number with
+    the operator in the left cell, a thick line, then empty answer cells.
+    """
+    cell = 6.5 * mm
+    carry_h = 5 * mm
+    gap = 4 * mm        # between grids side by side
+    row_gap = 10 * mm   # between rows of grids
+    problems = [p.split() for p in t["problems"]]
+    # Widest number in the task, plus one digit for a possible carry out of
+    # the top column, plus the operator cell; all grids share this width.
+    digits = max(len(tok) for p in problems for tok in p[::2]) + 1
+    width = (digits + 1) * cell
+    cols = t.get("columns", max(1, int((W - 2 * M + gap) // (width + gap))))
+    col_w = (W - 2 * M) / cols
+    c = s.c
+
+    def cells(x, y, h, color):
+        c.setStrokeColor(color)
+        for i in range(digits):
+            c.rect(x + (i + 1) * cell, y - h, cell, h)
+
+    for i in range(0, len(problems), cols):
+        row = problems[i:i + cols]
+        rows = max(len(p) // 2 + 1 for p in row)
+        s.ensure(7 * mm + carry_h + (rows + 1) * cell)
+        top = s.y
+        for col, p in enumerate(row):
+            n = i + col + 1
+            x = M + col * col_w
+            c.setFont("Body-Bold", 11)
+            c.setFillColor(LABEL)
+            c.drawString(x, top, f"{n})")
+            y = top - 3 * mm
+            cells(x, y, carry_h, RULE)
+            y -= carry_h
+            op = p[1]
+            c.setFillColor(BLACK)
+            for r, number in enumerate(p[::2]):
+                cells(x, y, cell, RULE)
+                c.setFont("Body", 16)
+                for d, ch in enumerate(reversed(number)):
+                    cx = x + (digits - d + 0.5) * cell
+                    c.drawCentredString(cx, y - cell + 2 * mm, ch)
+                if r:
+                    c.drawCentredString(x + 0.5 * cell, y - cell + 2 * mm,
+                                        "–" if op in "-–−" else op)
+                y -= cell
+            c.setStrokeColor(BLACK)
+            c.setLineWidth(2)
+            c.line(x, y, x + width, y)
+            c.setLineWidth(1)
+            cells(x, y, cell, BLACK)
+        s.y = top - 3 * mm - carry_h - (rows + 1) * cell - row_gap
+    s.y += row_gap - 4 * mm
+
+
 TASKS = {
     "sentences": task_sentences,
     "calc": task_calc,
     "word_problems": task_word_problems,
+    "column": task_column,
 }
 
 
