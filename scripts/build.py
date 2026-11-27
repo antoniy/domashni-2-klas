@@ -130,12 +130,19 @@ def task_sentences(s, t):
 
 
 def task_calc(s, t):
-    cols = t.get("columns", 4)
-    col_w = (W - 2 * M) / cols
+    exprs = t["expressions"]
     row_h = 15 * mm
-    for i in range(0, len(t["expressions"]), cols):
+    # A flat list wraps into `columns`; a list of lists keeps the teacher's
+    # rows, each row spread over the full width.
+    if isinstance(exprs[0], list):
+        rows = [(row, len(row)) for row in exprs]
+    else:
+        cols = t.get("columns", 4)
+        rows = [(exprs[i:i + cols], cols) for i in range(0, len(exprs), cols)]
+    for row, cols in rows:
+        col_w = (W - 2 * M) / cols
         s.ensure(row_h)
-        for col, expr in enumerate(t["expressions"][i:i + cols]):
+        for col, expr in enumerate(row):
             x = M + col * col_w
             s.c.setFont("Body", 16)
             s.c.setFillColor(BLACK)
@@ -147,8 +154,74 @@ def task_calc(s, t):
     s.y -= 4 * mm
 
 
+def task_short_answer(s, t):
+    """Word followed by a short writing line, words side by side in columns."""
+    cols = t.get("columns", 2)
+    col_w = (W - 2 * M) / cols
+    words = t["words"]
+    for i in range(0, len(words), cols):
+        s.ensure(LINE_GAP)
+        for col, word in enumerate(words[i:i + cols]):
+            x = M + col * col_w
+            s.c.setFont("Body-Bold", 12)
+            s.c.setFillColor(BLACK)
+            s.c.drawString(x, s.y + 2, word)
+            s.c.setStrokeColor(RULE)
+            s.c.line(x + pdfmetrics.stringWidth(word, "Body-Bold", 12) + 3 * mm, s.y,
+                     x + col_w - 6 * mm, s.y)
+        s.y -= LINE_GAP + 0.5 * mm
+
+
+def task_equations(s, t):
+    """Equation with an unknown, then short lines below it for the solution steps."""
+    cols = t.get("columns", 2)
+    lines = t.get("lines", 2)
+    col_w = (W - 2 * M) / cols
+    eqs = t["equations"]
+    for i in range(0, len(eqs), cols):
+        s.ensure(6 * mm + lines * LINE_GAP)
+        top = s.y
+        for col, eq in enumerate(eqs[i:i + cols]):
+            x = M + col * col_w
+            s.c.setFont("Body", 16)
+            s.c.setFillColor(BLACK)
+            s.c.drawString(x, top, eq)
+            s.c.setStrokeColor(RULE)
+            for n in range(1, lines + 1):
+                y = top - 2 * mm - n * LINE_GAP
+                s.c.line(x, y, x + col_w - 10 * mm, y)
+        s.y = top - 2 * mm - lines * LINE_GAP - 8 * mm
+    s.y += 4 * mm
+
+
+def task_copy_text(s, t):
+    """A text to copy (optional centred title), writing lines, then labelled sections."""
+    if "title" in t:
+        s.ensure(8 * mm)
+        s.c.setFont("Body-Bold", 13)
+        s.c.setFillColor(BLACK)
+        s.c.drawCentredString(W / 2, s.y, t["title"])
+        s.y -= 7 * mm
+    for para in t["passage"]:
+        s.paragraph(para, after=1 * mm)
+    s.y -= 6 * mm
+    # One line at a time, so the copying space may run onto the next page.
+    for _ in range(t.get("lines", 10)):
+        s.ensure(LINE_GAP)
+        s.rule()
+        s.y -= LINE_GAP
+    s.y -= 2 * mm
+    for label, count in t.get("sections", []):
+        s.labelled_lines(label, count)
+
+
 def task_word_problems(s, t):
     sections = t.get("sections", DEFAULT_SECTIONS)
+    # No `problems`: the task text itself is the one problem.
+    if "problems" not in t:
+        for label, count in sections:
+            s.labelled_lines(label, count)
+        return
     letters = "абвгдежзий"
     for letter, text in zip(letters, t["problems"]):
         s.paragraph(f"<b>{letter})</b> {text}", after=5 * mm)
@@ -222,6 +295,9 @@ TASKS = {
     "calc": task_calc,
     "word_problems": task_word_problems,
     "column": task_column,
+    "short_answer": task_short_answer,
+    "equations": task_equations,
+    "copy_text": task_copy_text,
 }
 
 
